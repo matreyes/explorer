@@ -6884,7 +6884,15 @@ defmodule Explorer.DataFrame do
   # SQL
 
   @doc """
-  Create a dataframe from the result of a SQL query on an existing dataframe.
+  Execute a SQL query on one or more DataFrames.
+
+  This function supports two modes of operation:
+
+  1. **Single DataFrame**: Pass a DataFrame and a SQL query string. The DataFrame
+     is registered as a table with a default name `"df"` (or a custom name via `table_name` option).
+
+  2. **Multiple DataFrames**: Pass a map of table names to DataFrames and a SQL query string.
+     Each DataFrame is registered as a table with its corresponding name.
 
   > ### SQL Query is Unvalidated {: .warning}
   >
@@ -6892,14 +6900,9 @@ defmodule Explorer.DataFrame do
   > it directly to the backend. As such, the SQL dialect will be backend
   > dependent and any errors will come directly from the backend.
 
-  ## `from` Clause
-
-  The `from` clause of the SQL query should reference a chosen table name. The
-  default name is `"df"`. See the examples for a custom table name.
-
   ## Examples
 
-  Basic example:
+  Single DataFrame with default table name:
 
       iex> df = Explorer.DataFrame.new(a: [1, 2, 3], b: ["x", "y", "y"])
       iex> Explorer.DataFrame.sql(df, "select ARRAY_AGG(a), b from df group by b order by b")
@@ -6909,7 +6912,7 @@ defmodule Explorer.DataFrame do
         b string ["x", "y"]
       >
 
-  Custom table name:
+  Single DataFrame with custom table name:
 
       iex> df = Explorer.DataFrame.new(a: [1, 2, 3])
       iex> Explorer.DataFrame.sql(df, "select a + 1 from my_table", table_name: "my_table")
@@ -6917,11 +6920,45 @@ defmodule Explorer.DataFrame do
         Polars[3 x 1]
         a s64 [2, 3, 4]
       >
+
+  Multiple DataFrames:
+
+      iex> df1 = Explorer.DataFrame.new(id: [1, 2, 3], name: ["Alice", "Bob", "Charlie"])
+      iex> df2 = Explorer.DataFrame.new(id: [1, 2, 4], age: [25, 30, 35])
+      iex> Explorer.DataFrame.sql(%{users: df1, ages: df2}, "SELECT users.name, ages.age FROM users JOIN ages ON users.id = ages.id") |> Explorer.DataFrame.collect()
+      #Explorer.DataFrame<
+        Polars[2 x 2]
+        name string ["Alice", "Bob"]
+        age s64 [25, 30]
+      >
   """
+  @doc type: :single
+  @spec sql(tables :: %{required(atom() | binary()) => DataFrame.t()}, sql_string :: binary()) ::
+          df :: DataFrame.t()
+  def sql(tables, sql_string)
+      when is_map(tables) and not is_struct(tables) and is_binary(sql_string) do
+    tables_list =
+      tables
+      |> Enum.map(fn {name, %__MODULE__{} = df} ->
+        {to_string(name), df}
+      end)
+
+    backend = Explorer.Backend.get()
+    apply(backend, :sql_execute, [tables_list, sql_string])
+  end
+
+  # sql/2 for single DataFrame (without opts)
+  @doc type: :single
+  @spec sql(df :: DataFrame.t(), sql_string :: binary()) :: df :: DataFrame.t()
+  def sql(%__MODULE__{} = df, sql_string) when is_binary(sql_string) do
+    sql(df, sql_string, [])
+  end
+
+  # sql/3 for single DataFrame with opts (no default to avoid conflict)
   @doc type: :single
   @spec sql(df :: DataFrame.t(), sql_string :: binary(), opts :: Keyword.t()) ::
           df :: DataFrame.t()
-  def sql(%__MODULE__{} = df, sql_string, opts \\ [])
+  def sql(%__MODULE__{} = df, sql_string, opts)
       when is_binary(sql_string) and is_list(opts) do
     [table_name: table_name] = Keyword.validate!(opts, table_name: "df")
     Shared.apply_dataframe(df, :sql, [sql_string, table_name])
