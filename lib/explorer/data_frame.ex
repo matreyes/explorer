@@ -6886,13 +6886,8 @@ defmodule Explorer.DataFrame do
   @doc """
   Execute a SQL query on one or more DataFrames.
 
-  This function supports two modes of operation:
-
-  1. **Single DataFrame**: Pass a DataFrame and a SQL query string. The DataFrame
-     is registered as a table with a default name `"df"` (or a custom name via `table_name` option).
-
-  2. **Multiple DataFrames**: Pass a map of table names to DataFrames and a SQL query string.
-     Each DataFrame is registered as a table with its corresponding name.
+  Pass a map of table names to DataFrames and a SQL query string.
+  Each DataFrame is registered as a table with its corresponding name.
 
   > ### SQL Query is Unvalidated {: .warning}
   >
@@ -6902,23 +6897,14 @@ defmodule Explorer.DataFrame do
 
   ## Examples
 
-  Single DataFrame with default table name:
+  Single DataFrame:
 
       iex> df = Explorer.DataFrame.new(a: [1, 2, 3], b: ["x", "y", "y"])
-      iex> Explorer.DataFrame.sql(df, "select ARRAY_AGG(a), b from df group by b order by b")
+      iex> Explorer.DataFrame.sql(%{df: df}, "select ARRAY_AGG(a), b from df group by b order by b")
       #Explorer.DataFrame<
         Polars[2 x 2]
         a list[s64] [[1], [2, 3]]
         b string ["x", "y"]
-      >
-
-  Single DataFrame with custom table name:
-
-      iex> df = Explorer.DataFrame.new(a: [1, 2, 3])
-      iex> Explorer.DataFrame.sql(df, "select a + 1 from my_table", table_name: "my_table")
-      #Explorer.DataFrame<
-        Polars[3 x 1]
-        a s64 [2, 3, 4]
       >
 
   Multiple DataFrames:
@@ -6945,23 +6931,6 @@ defmodule Explorer.DataFrame do
 
     backend = Explorer.Backend.get()
     apply(backend, :sql_execute, [tables_list, sql_string])
-  end
-
-  # sql/2 for single DataFrame (without opts)
-  @doc type: :single
-  @spec sql(df :: DataFrame.t(), sql_string :: binary()) :: df :: DataFrame.t()
-  def sql(%__MODULE__{} = df, sql_string) when is_binary(sql_string) do
-    sql(df, sql_string, [])
-  end
-
-  # sql/3 for single DataFrame with opts (no default to avoid conflict)
-  @doc type: :single
-  @spec sql(df :: DataFrame.t(), sql_string :: binary(), opts :: Keyword.t()) ::
-          df :: DataFrame.t()
-  def sql(%__MODULE__{} = df, sql_string, opts)
-      when is_binary(sql_string) and is_list(opts) do
-    [table_name: table_name] = Keyword.validate!(opts, table_name: "df")
-    Shared.apply_dataframe(df, :sql, [sql_string, table_name])
   end
 
   # Helpers

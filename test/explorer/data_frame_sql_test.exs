@@ -4,10 +4,10 @@ defmodule Explorer.DataFrameSQLTest do
   alias Explorer.DataFrame, as: DF
 
   describe "sql/2 with single DataFrame" do
-    test "executes SQL query with default table name" do
+    test "executes SQL query with table name" do
       df = DF.new(a: [1, 2, 3], b: ["x", "y", "y"])
 
-      result = DF.sql(df, "select ARRAY_AGG(a), b from df group by b order by b")
+      result = DF.sql(%{df: df}, "select ARRAY_AGG(a), b from df group by b order by b")
 
       assert result != nil
       result = DF.collect(result)
@@ -18,7 +18,7 @@ defmodule Explorer.DataFrameSQLTest do
     test "executes SQL query with custom table name" do
       df = DF.new(a: [1, 2, 3])
 
-      result = DF.sql(df, "select a + 1 from my_table", table_name: "my_table")
+      result = DF.sql(%{my_table: df}, "select a + 1 from my_table")
 
       assert result != nil
       result = DF.collect(result)
@@ -29,7 +29,7 @@ defmodule Explorer.DataFrameSQLTest do
     test "executes SQL query with WHERE clause" do
       df = DF.new(id: [1, 2, 3, 4, 5], value: [10, 20, 30, 40, 50])
 
-      result = DF.sql(df, "select id, value from df where id > 2")
+      result = DF.sql(%{df: df}, "select id, value from df where id > 2")
 
       result = DF.collect(result)
       assert DF.n_rows(result) == 3
@@ -39,7 +39,7 @@ defmodule Explorer.DataFrameSQLTest do
     test "executes SQL query with ORDER BY clause" do
       df = DF.new(name: ["Alice", "Bob", "Charlie"], age: [30, 25, 35])
 
-      result = DF.sql(df, "select name, age from df order by age")
+      result = DF.sql(%{df: df}, "select name, age from df order by age")
 
       result = DF.collect(result)
       assert DF.n_rows(result) == 3
@@ -51,7 +51,7 @@ defmodule Explorer.DataFrameSQLTest do
     end
   end
 
-  describe "sql/2 with multiple DataFrames (map)" do
+  describe "sql/2 with multiple DataFrames" do
     test "executes SQL query on single registered DataFrame" do
       df1 = DF.new(column_a: [1, 2, 3])
 
@@ -93,7 +93,6 @@ defmodule Explorer.DataFrameSQLTest do
 
       result = DF.collect(result)
       assert DF.n_rows(result) == 3
-      # Note: LEFT JOIN may produce null values for missing matches
     end
 
     test "executes SQL query with multiple table references" do
@@ -162,34 +161,12 @@ defmodule Explorer.DataFrameSQLTest do
     end
   end
 
-  describe "sql/3 with options" do
-    test "executes SQL query with table_name option" do
-      df = DF.new(a: [1, 2, 3])
-
-      result = DF.sql(df, "select a * 2 as doubled from my_data", table_name: "my_data")
-
-      result = DF.collect(result)
-      assert DF.n_rows(result) == 3
-      assert DF.names(result) == ["doubled"]
-    end
-
-    test "uses default table name 'df' when not specified" do
-      df = DF.new(x: [10, 20, 30])
-
-      result = DF.sql(df, "select x from df where x > 15")
-
-      result = DF.collect(result)
-      assert DF.n_rows(result) == 2
-      assert DF.to_columns(result, atom_keys: true) == %{x: [20, 30]}
-    end
-  end
-
   describe "error handling" do
     test "raises error for invalid SQL syntax" do
       df = DF.new(a: [1, 2, 3])
 
       assert_raise RuntimeError, fn ->
-        DF.sql(df, "select from invalid syntax")
+        DF.sql(%{t1: df}, "select from invalid syntax")
       end
     end
 
@@ -221,7 +198,6 @@ defmodule Explorer.DataFrameSQLTest do
         )
 
       result = DF.collect(result)
-      # Values greater than 30 should be 40 and 50
       assert DF.n_rows(result) == 2
       assert DF.to_columns(result, atom_keys: true) == %{id: [4, 5], value: [40, 50]}
     end

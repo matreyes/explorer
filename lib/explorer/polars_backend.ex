@@ -3,20 +3,18 @@ defmodule Explorer.PolarsBackend do
   The Explorer backend for Polars.
   """
 
-  alias Explorer.PolarsBackend.Native
+  alias Explorer.PolarsBackend.{Native, Shared}
 
   @doc false
   def sql_execute(tables, sql_string) do
-    # Extract the internal DataFrame data from each DataFrame
     tables_with_df =
       Enum.map(tables, fn {name, df} ->
         {name, df.data}
       end)
 
     with {:ok, polars_ldf} <- Native.sql_execute(tables_with_df, sql_string),
-         {:ok, names} <- Native.lf_names(polars_ldf),
-         {:ok, dtypes} <- Native.lf_dtypes(polars_ldf) do
-      Explorer.Backend.DataFrame.new(polars_ldf, names, dtypes)
+         {:ok, polars_df} <- Native.lf_compute(polars_ldf) do
+      Shared.create_dataframe!(polars_df)
     else
       {:error, error} -> raise error
     end
