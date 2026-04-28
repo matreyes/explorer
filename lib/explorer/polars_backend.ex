@@ -3,9 +3,11 @@ defmodule Explorer.PolarsBackend do
   The Explorer backend for Polars.
   """
 
+  @behaviour Explorer.Backend
+
   alias Explorer.PolarsBackend.{Native, Shared}
 
-  @doc false
+  @impl true
   def sql_execute(tables, sql_string) do
     tables_with_df =
       Enum.map(tables, fn {name, df} ->
