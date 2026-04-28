@@ -6929,8 +6929,17 @@ defmodule Explorer.DataFrame do
         {to_string(name), df}
       end)
 
-    backend = Explorer.Backend.get()
-    apply(backend, :sql_execute, [tables_list, sql_string])
+    impl =
+      case tables_list do
+        [] ->
+          backend = Explorer.Backend.get()
+          :"#{backend}.DataFrame"
+
+        [{_, %__MODULE__{data: %impl_mod{}}} | _] ->
+          impl_mod
+      end
+
+    apply(impl, :sql_execute, [tables_list, sql_string])
   end
 
   # Helpers

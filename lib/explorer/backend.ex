@@ -16,11 +16,6 @@ defmodule Explorer.Backend do
 
   """
 
-  @callback sql_execute(
-              tables :: [{binary(), Explorer.DataFrame.t()}],
-              sql_string :: binary()
-            ) :: Explorer.DataFrame.t()
-
   @backend_key {Explorer, :default_backend}
 
   @doc """
