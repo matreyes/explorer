@@ -968,8 +968,6 @@ defmodule Explorer.PolarsBackend.DataFrame do
         {name, df.data}
       end)
 
-    alias Explorer.PolarsBackend.{Native, Shared}
-
     with {:ok, polars_ldf} <- Native.sql_execute(tables_with_df, sql_string),
          {:ok, polars_df} <- Native.lf_compute(polars_ldf) do
       Shared.create_dataframe!(polars_df)

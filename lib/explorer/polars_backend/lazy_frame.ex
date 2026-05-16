@@ -653,8 +653,6 @@ defmodule Explorer.PolarsBackend.LazyFrame do
         {name, df.data}
       end)
 
-    alias Explorer.PolarsBackend.Native
-
     with {:ok, polars_ldf} <- Native.sql_execute(tables_with_df, sql_string),
          {:ok, names} <- Native.lf_names(polars_ldf),
          {:ok, dtypes} <- Native.lf_dtypes(polars_ldf) do
